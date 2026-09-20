@@ -2,7 +2,7 @@
 title: "Keep It Cool: Optimal Control of Robotic Systems Under Temperature Constraints"
 theme: device
 favicon: favicon.svg
-description: "A hierarchical QP model predictive controller that embeds actuator temperature dynamics as hard constraints, validated in simulation and on a 3-DoF redundant manipulator."
+description: "A hierarchical QP model predictive controller that embeds actuator temperature dynamics as hard constraints, validated in simulation and on a 3-DoF redundant manipulator. Published in IEEE Transactions on Control Systems Technology, 2026."
 thumbnail: cover_pic.png
 ---
 
@@ -13,6 +13,7 @@ import Picture from "./components/Picture.astro";
 import Video from "./components/Video.astro";
 import Wide from "./components/Wide.astro";
 import TwoColumns from "./components/TwoColumns.astro";
+import Bibtex from "./components/Bibtex.astro";
 
 import teaser from "./assets/teaser.webm";
 import overview from "./assets/overview.svg";
@@ -35,15 +36,18 @@ import expWeight from "./assets/exp_weight.webp";
     {
       name: "Davide De Benedittis",
       url: "https://ddebenedittis.github.io/",
-      institution: "University of Pisa",
-      notes: ["*"],
+      notes: ["1", "*"],
     },
-    { name: "Franco Angelini", institution: "University of Pisa" },
-    { name: "Riccardo Incerpi", institution: "University of Pisa" },
-    { name: "Lucia Pallottino", institution: "University of Pisa" },
-    { name: "Manolo Garabini", institution: "University of Pisa" },
+    { name: "Franco Angelini", notes: ["1"] },
+    { name: "Riccardo Incerpi", notes: ["1"] },
+    { name: "Lucia Pallottino", notes: ["1"] },
+    { name: "Manolo Garabini", notes: ["1"] },
   ]}
   notes={[
+    {
+      symbol: "1",
+      text: "Centro di Ricerca “E. Piaggio” and Dipartimento di Ingegneria dell'Informazione, Università di Pisa, Pisa 56122, Italy",
+    },
     { symbol: "*", text: "Corresponding author: davide.debenedittis@phd.unipi.it" },
   ]}
   links={[
@@ -281,7 +285,7 @@ In every task, the temperatures of the actuators respected the limits, barring t
 The controller automatically adapted its behavior to the thermal dynamics of the system, dealing with and compensating for the overheating of both one and multiple actuators in increasingly complex tasks.
 Crucially, the controller does not collapse the tracking task: it exploits the manipulator's kinematic redundancy to redistribute actuator load while keeping the end-effector close to the reference.
 
-## Conclusions
+## Conclusion
 
 This work introduced a temperature-aware controller that embeds a first-order thermal model of the actuators into a hierarchical QP MPC scheme.
 By coupling an epigraph reformulation of the absolute-value temperature dynamics with strict task prioritization, the controller enforces hard temperature safety limits while exploiting redundancy to track end-effector motions.
@@ -293,6 +297,8 @@ These results validate, on real hardware, the claim that software-level thermal 
 
 ## BibTeX citation
 
+<Bibtex>
+
 ```bibtex
 @article{debenedittis2026keep,
   author  = {De Benedittis, Davide and Angelini, Franco and Incerpi, Riccardo and Pallottino, Lucia and Garabini, Manolo},
@@ -303,6 +309,8 @@ These results validate, on real hardware, the claim that software-level thermal 
   doi     = {10.1109/TCST.2026.3721130}
 }
 ```
+
+</Bibtex>
 
 {/* Deliberately left off this page, all of which have a source in the paper but
     do not belong on a project page: the related-work survey and its comparison
