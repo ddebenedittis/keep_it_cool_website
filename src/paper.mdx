@@ -1,0 +1,311 @@
+---
+title: "Keep It Cool: Optimal Control of Robotic Systems Under Temperature Constraints"
+theme: device
+favicon: favicon.svg
+description: "A hierarchical QP model predictive controller that embeds actuator temperature dynamics as hard constraints, validated in simulation and on a 3-DoF redundant manipulator."
+thumbnail: cover_pic.png
+---
+
+import Header from "./components/Header.astro";
+import HighlightedSection from "./components/HighlightedSection.astro";
+import Figure from "./components/Figure.astro";
+import Picture from "./components/Picture.astro";
+import Video from "./components/Video.astro";
+import Wide from "./components/Wide.astro";
+import TwoColumns from "./components/TwoColumns.astro";
+
+import teaser from "./assets/teaser.webm";
+import overview from "./assets/overview.svg";
+import blockDiagram from "./assets/block_diagram.svg";
+import simEeWqp from "./assets/sim_ee_wqp.svg";
+import simEeHqp from "./assets/sim_ee_hqp.svg";
+import simLemniscate from "./assets/sim_lemniscate.webp";
+import tempIdentification from "./assets/temp_identification.webp";
+import expReach from "./assets/exp_reach.webp";
+import expTempUnaware from "./assets/exp_temp_unaware.svg";
+import expTempAware from "./assets/exp_temp_aware.svg";
+import expLemniscateVideo from "./assets/exp_lemniscate.webm";
+import expLemniscate from "./assets/exp_lemniscate.webp";
+import expWeight from "./assets/exp_weight.webp";
+
+<Header
+  title="Keep It Cool: Optimal Control of Robotic Systems Under Temperature Constraints"
+  conference="IEEE Transactions on Control Systems Technology, 2026"
+  authors={[
+    {
+      name: "Davide De Benedittis",
+      url: "https://ddebenedittis.github.io/",
+      institution: "University of Pisa",
+      notes: ["*"],
+    },
+    { name: "Franco Angelini", institution: "University of Pisa" },
+    { name: "Riccardo Incerpi", institution: "University of Pisa" },
+    { name: "Lucia Pallottino", institution: "University of Pisa" },
+    { name: "Manolo Garabini", institution: "University of Pisa" },
+  ]}
+  notes={[
+    { symbol: "*", text: "Corresponding author: davide.debenedittis@phd.unipi.it" },
+  ]}
+  links={[
+    {
+      name: "Paper",
+      url: "https://doi.org/10.1109/TCST.2026.3721130",
+      icon: "ri:file-pdf-2-line",
+    },
+    {
+      name: "Code",
+      url: "https://github.com/ddebenedittis/optimal_control_temperature_constraints",
+      icon: "ri:github-line",
+    },
+  ]}
+>
+  <Video slot="background" src={teaser} controls={false} />
+</Header>
+
+<HighlightedSection>
+
+## Abstract
+
+Overheating of electronic components, and especially motor drivers, is a key limitation in robotic systems.
+This study presents a control approach based on hierarchical quadratic programming and model predictive control to prevent drivers from overheating in robotic systems.
+This is made possible by incorporating the temperature dynamics into the overall system dynamics.
+Prioritized inequality constraints limit the maximum temperature of the drivers in the control framework, avoiding overheating problems.
+Exhaustive simulations demonstrate the effectiveness of the proposed approach in preventing overheating while performing tasks, and an ablation study quantifies the contribution of each of the method's main components.
+Experiments on a redundant planar manipulator further validate the proposed approach.
+The results show that, while exploiting its redundancy, the manipulator adjusts its configuration over time to respect the temperature and other critical constraints and optimally perform the commanded tasks.
+
+</HighlightedSection>
+
+## Overheating is a control problem
+
+Robotic systems rely on electronic and electromechanical components whose operating temperatures strongly affect performance and reliability.
+Motor drivers, which deliver high currents to actuators, are particularly prone to overheating, leading to damage or costly replacements, especially in demanding applications such as disaster response, healthcare, and environmental exploration.
+
+Most works on thermal management focus on hardware: mechanical design, materials, and cooling solutions, ranging from passive devices to active cooling and even bio-inspired sweating actuators.
+Although effective, hardware solutions impose design trade-offs and add complexity and cost.
+Control strategies that explicitly account for temperature have received far less attention, despite requiring no hardware modifications and being deployable on existing platforms.
+
+<Figure>
+  <Picture slot="figure" src={overview} alt="A prioritized MPC-HQP block handling hard limits, safety, and tasks sends desired joint quantities to a saturated low-level PD controller, which drives an arm whose actuators heat up according to a first-order thermal model." />
+  <Fragment slot="caption">Overview of the problem addressed, the overheating of robotic components during operations, and of the control architecture. Hard limits, safety (i.e., temperature limits), and the tasks are considered to prevent overheating.</Fragment>
+</Figure>
+
+## Approach
+
+*Keep It Cool* (KIC) embeds actuator temperature dynamics and constraints directly in the control framework.
+It relies on Hierarchical Quadratic Programming (HQP), which enables strict prioritization among tasks and has been successfully applied to redundant and high-DoF robots.
+A first-order thermal model is incorporated into a Model Predictive Control (MPC) problem using auxiliary variables and an epigraph reformulation, which converts absolute-value temperature dynamics into linear constraints.
+As a result, temperature becomes a hard constraint handled at the same level as the other physical limits.
+
+### Thermal model
+
+Temperature dynamics arise from the interplay between heat generation, due to resistive and mechanical losses, and heat dissipation with the environment.
+The actuators' temperature is modelled as a first-order linear system:
+
+$$
+\dot{T} = - \alpha \left( T - T_{\mathrm{amb}} \right) + \beta \left| \tau \right|
+$$
+
+where $T$ is the actuator temperature, $T_{\mathrm{amb}}$ the ambient temperature, $\tau$ the actuator torque, and $\alpha$ and $\beta$ the thermal parameters modelling heat dissipation and generation.
+Although Joule heating is formally proportional to $\tau^2$, the linear $\beta \left| \tau \right|$ form achieves comparable RMSE to higher-order alternatives on the identification data and preserves the QP structure that enables a real-time HQP-MPC.
+The thermal time constant $1 / \alpha$ is also more than an order of magnitude longer than the MPC horizon, so the temperature evolves near-linearly within a prediction window.
+
+### Epigraph reformulation
+
+The absolute value in the thermal model is not smooth, and would take the problem out of the QP class.
+An absolute-value inequality constraint $\left| x \right| \le x_{\mathrm{max}}$ is therefore replaced by a slack variable $z$ and the linear constraints
+
+$$
+-z \le x \le z, \quad z \ge 0, \quad z \le x_{\mathrm{max}} .
+$$
+
+The transformation is the standard epigraph reformulation: it preserves feasibility and convexity while avoiding the non-smooth modulus operator.
+The resulting optimization therefore remains a plain QP, suitable for real-time control.
+
+### Control architecture
+
+<Wide>
+  <Picture src={blockDiagram} alt="The whole-body controller solves a stack of prioritized tasks through a hierarchical QP and outputs desired joint positions, velocities, torques and temperatures to a low-level PD controller with a saturation block, which commands the robot." />
+</Wide>
+
+The Whole-Body Controller, which solves the prioritized MPC through the HQP block, runs at 400 Hz and outputs the desired commanded quantities.
+The Low-Level Controller runs at 1 kHz: a PD controller compensates the joint-tracking error using position and velocity feedback.
+The Saturation block is a software clamp on the controller side that enforces the torque and the temperature-derived torque limits before the command is sent to the hardware.
+It bounds the PD term, which is added downstream of the optimizer and can inject torque the QP never authorized under model mismatch.
+
+### Task priorities
+
+Tasks are assigned priorities according to their importance.
+Dynamic consistency, when present, holds the highest priority because it ensures adherence to the system dynamics, and the epigraph reformulation follows, as it must be equivalent to the original problem.
+The torque limits task enforces a non-negotiable physical constraint; the temperature limit comes next, encoding safety rather than immediate operational needs.
+Velocity limits have lower priority, and the motion task is ranked last, so its execution never causes limit violations or overheating.
+
+| Priority | Task |
+| --- | --- |
+| 1 | Dynamic consistency (multiple shooting only) |
+| 2 | Epigraph reformulation |
+| 3 | Torque limits |
+| 4 | Temperature limits |
+| 5 | Velocity limits |
+| 6 | Motion tracking task |
+
+## Simulation
+
+Each trial lasts 60 s with the cascade re-solved at 400 Hz, an ambient temperature of 25 °C, and a maximum actuator temperature of 40 °C.
+The MPC uses three control steps of 50 ms, i.e. a 0.15 s horizon.
+
+In the **reach and hold** task the robot must reach a desired end-effector position and hold it indefinitely.
+The desired position is chosen so that it is not feasible long term, meaning that the robot would overheat if it were to hold it indefinitely.
+The standard weighted QP maintains a low end-effector position error at the cost of overheating the actuators, while the proposed HQP approach does not overheat the actuators and accepts larger errors when necessary.
+This happens when the temperatures of both the first and the second actuator are close to the maximum: not even exploiting the robot's redundancy can then achieve the task without overheating.
+
+<TwoColumns>
+  <Figure slot="left">
+    <Picture slot="figure" src={simEeWqp} alt="End-effector trajectory with the weighted QP, coloured by maximum actuator temperature, ending in a red segment above 40 degrees Celsius." />
+    <Fragment slot="caption">Weighted QP: the end-effector holds the target, but the actuators overheat.</Fragment>
+  </Figure>
+  <Figure slot="right">
+    <Picture slot="figure" src={simEeHqp} alt="End-effector trajectory with the proposed hierarchical QP, coloured by maximum actuator temperature, looping near the target and staying below 40 degrees Celsius." />
+    <Fragment slot="caption">Proposed approach: the end-effector drifts around the target, and the temperature limit is respected.</Fragment>
+  </Figure>
+</TwoColumns>
+
+In the **lemniscate** task the robot follows a figure-eight trajectory of 0.1 m amplitude while constrained to keep the end-effector inside a rectangular area.
+The constraint ordering is: 1) the physical limits of the system, 2) the temperature limits of the actuators, 3) the Cartesian limits on the end-effector coordinates, and 4) the reference trajectory tracking.
+The lemniscate is likewise not feasible for the robot to follow indefinitely without overheating.
+
+<Figure>
+  <Picture slot="figure" src={simLemniscate} alt="Simulated manipulator in two configurations tracking a figure-eight end-effector trajectory in green, with the reference in red and the forbidden Cartesian regions shaded red." />
+  <Fragment slot="caption">Lemniscate trajectory tracking with Cartesian limits. The end-effector trajectory is green, the reference red, and the red zones denote the Cartesian limits to be avoided.</Fragment>
+</Figure>
+
+Both case studies confirm a consistent pattern: the HQP controller treats actuator temperature as a hard constraint and violates the tracking task when necessary.
+In the reach and hold task the controller achieves good accuracy before approaching the temperature limit, at which point it prioritizes the thermal constraint over tracking.
+In the lemniscate task, compatibly with the temperature limits, it respects the Cartesian limits and, with lower priority, the trajectory tracking.
+
+## Ablation study
+
+The state of the art does not provide a unified framework for temperature-aware control: existing methods either solve different problems or represent a narrow subset of this approach, so a direct comparison is not particularly meaningful.
+Instead, deactivating components or adding variations, such as CBF-based constraints, lets us evaluate the impact of each component.
+
+| Controller | Position RMSE [cm] | Max pos. error [cm] | Avg. temp. [°C] | Max temp. [°C] |
+| --- | --- | --- | --- | --- |
+| KIC + WQP (κ = 2) | 2.9 | 15.1 | 40.48 | 43.07 |
+| KIC + WQP (κ = 5) | 3.5 | 14.9 | 39.62 | 40.45 |
+| KIC + WQP (κ = 10) | 3.2 | 15.1 | 39.48 | 40.12 |
+| KIC + WQP (κ = 20) | 3.3 | 14.5 | 38.19 | 40.10 |
+| KIC + WQP (κ = 20) + CBF | 4.5 | 15.3 | 37.45 | 39.76 |
+| KIC + no epigraph | 4.7 | 14.9 | 37.12 | 39.99 |
+| **KIC (proposed)** | **3.2** | **13.8** | 39.46 | **39.99** |
+
+Reach and hold task, with a 40 °C limit. Each "+" marks the substitution of a single component of the proposed framework.
+
+The results show that WQP is highly sensitive to the choice of weights: it fails to guarantee temperature limits and, depending on the relative weight κ, can cause significant violations.
+The HQP-based formulation achieves optimal temperature management without extensive parameter tuning, violating the constraint only when necessary.
+The CBF generally yields a more conservative behavior, so it satisfies temperature limits even with low-weight WQP, at the cost of worse position tracking; it is a valid, more conservative addition to the proposed approach, beneficial in certain scenarios.
+Without the epigraph reformulation, an additional torque-variation constraint is required to prevent the controller from exploiting the linearization with negative cooling torques, which adds two parameters that must be tuned.
+
+## Experiments
+
+The controller was validated on a planar 3-DoF robotic arm driven by three identical EM-Act actuators, which are current-controlled and measure joint positions, velocities, and driver temperatures.
+Three experiments of 300 s each are executed: a reach and hold task, a lemniscate trajectory tracking task with workspace limits, and a reach and hold task with an unmodeled payload.
+Each task is performed twice: once with a conventional temperature-unaware controller and once with the proposed controller.
+
+An intentionally low temperature limit of 35 °C is enforced to generate appreciable thermal transients within reasonably long experiments, while also ensuring hardware safety.
+The controller mechanism is invariant in the absolute value of the limit: the temperature-limit task treats it as a parameter, so the same algorithm enforces any other limit, such as the rated 80 °C of typical motor drivers, without modification.
+
+### Temperature model identification
+
+Prior to closed-loop tests, a first-order thermal model of the actuators was identified.
+Five constant-torque levels, covering a wide range of operating conditions, were each repeated five times until steady state, and the parameters were pooled over all 25 runs.
+The estimation yields $\alpha = (0.0456 \pm 0.0005)$ 1/s and $\beta = (1.839 \pm 0.009)$ °C/(N m s), at 95% confidence, with an RMSE of 1.03 °C.
+On the same dataset a quadratic heating term achieves 0.98 °C RMSE, a gain below the 1 °C sensor quantization, so the linear model is retained.
+
+<Figure>
+  <Picture slot="figure" src={tempIdentification} alt="Measured actuator temperature rising from 20 to 57 degrees Celsius over 60 seconds under constant torque, with the fitted first-order exponential curve and its time constant and steady-state gain marked." />
+  <Fragment slot="caption">Temperature step response of the actuator and first-order approximated model. The time constant, the steady-state gain, and the temperature slope are superimposed on the plot.</Fragment>
+</Figure>
+
+### Reach and hold
+
+The arm holds an end-effector position for a predefined amount of time.
+This task causes the actuators to overheat, as proven by the results obtained with the temperature-unaware controller.
+The proposed controller modifies its behavior once the temperature limit is reached, at around 100 s, and reconfigures the arm to keep dissipating heat while staying close to the reference.
+
+<Figure>
+  <Picture slot="figure" src={expReach} alt="The planar three-link arm hanging from a shelf, reaching for a purple target sphere, with the executed end-effector trajectory drawn in green." />
+  <Fragment slot="caption">Overview of the reach and hold task. Multiple snapshots of the experiment are superimposed, the trajectory is shown in green, and the end-effector reference in purple.</Fragment>
+</Figure>
+
+<TwoColumns>
+  <Figure slot="left">
+    <Picture slot="figure" src={expTempUnaware} alt="Measured joint temperatures with the temperature-unaware controller, with the first joint crossing the 35 degrees Celsius limit after about 120 seconds and rising to 37.5." />
+    <Fragment slot="caption">Temperature-unaware controller: the actuators cross the 35 °C limit.</Fragment>
+  </Figure>
+  <Figure slot="right">
+    <Picture slot="figure" src={expTempAware} alt="Measured joint temperatures with the proposed controller, with all three joints levelling off at the 35 degrees Celsius limit." />
+    <Fragment slot="caption">Proposed approach: the actuators settle on the limit instead of exceeding it.</Fragment>
+  </Figure>
+</TwoColumns>
+
+During the hold phase, isolated outlier samples briefly cross 35 °C: the 0.1 °C sensor quantization combined with measurement noise makes raw readings flip above the limit even though the true temperature stays below it.
+A first-order low-pass filter, overlaid on the raw measurements, remains below the limit throughout, whereas the same filter on the baseline sits clearly above it, confirming that the baseline truly overheats.
+
+### Lemniscate trajectory with workspace limits
+
+Here the end-effector executes a figure-eight path while remaining inside the admissible Cartesian workspace.
+As each actuator reaches the temperature limit, the controller further modifies its behavior.
+
+<Figure>
+  <Video slot="figure" src={expLemniscateVideo} />
+  <Fragment slot="caption">Lemniscate trajectory tracking with Cartesian limits, played at 5x speed, with the measured actuator temperatures overlaid.</Fragment>
+</Figure>
+
+<Figure>
+  <Picture slot="figure" src={expLemniscate} alt="Superimposed snapshots of the arm tracing a figure-eight, with the executed trajectory in green, the reference in red, and the workspace boundaries shaded red." />
+  <Fragment slot="caption">Overview of the lemniscate trajectory tracking and Cartesian limits task. The trajectory is shown in green, the reference in red, and the Cartesian limits as red shaded areas.</Fragment>
+</Figure>
+
+### Robustness to an unmodeled payload
+
+Finally, a reach and hold task with an added weight of 0.5 kg tests the robustness of the proposed approach.
+The weight is not modeled in the control framework.
+The approach still manages the temperatures even in the presence of the unmodeled payload, while executing the task as closely as possible.
+
+<Figure>
+  <Picture slot="figure" src={expWeight} alt="Superimposed snapshots of the arm holding a position while carrying an unmodelled 0.5 kg payload, with the end-effector reference in purple." />
+  <Fragment slot="caption">Reach and hold task with an added weight. Multiple snapshots of the experiment are superimposed, with the desired end-effector position in purple.</Fragment>
+</Figure>
+
+In every task, the temperatures of the actuators respected the limits, barring the isolated measurement outliers, and the end-effector trajectories were followed reasonably.
+The controller automatically adapted its behavior to the thermal dynamics of the system, dealing with and compensating for the overheating of both one and multiple actuators in increasingly complex tasks.
+Crucially, the controller does not collapse the tracking task: it exploits the manipulator's kinematic redundancy to redistribute actuator load while keeping the end-effector close to the reference.
+
+## Conclusions
+
+This work introduced a temperature-aware controller that embeds a first-order thermal model of the actuators into a hierarchical QP MPC scheme.
+By coupling an epigraph reformulation of the absolute-value temperature dynamics with strict task prioritization, the controller enforces hard temperature safety limits while exploiting redundancy to track end-effector motions.
+Compared with weighted QP baselines, CBF relaxations, and non-epigraph reformulations, the proposed design requires minimal tuning and preserves feasibility irrespective of the operating condition.
+
+Simulations on a 3-DoF manipulator showed that the controller prevents overheating during challenging and dynamic tasks that would otherwise overheat the system.
+Hardware experiments confirmed the practicality of the method: the robot automatically re-configured itself to dissipate heat, never exceeding the safety limit, and maintained good position accuracy over prolonged tasks.
+These results validate, on real hardware, the claim that software-level thermal management can complement or, for low-power manipulators, even replace bulky active-cooling hardware.
+
+## BibTeX citation
+
+```bibtex
+@article{debenedittis2026keep,
+  author  = {De Benedittis, Davide and Angelini, Franco and Incerpi, Riccardo and Pallottino, Lucia and Garabini, Manolo},
+  journal = {IEEE Transactions on Control Systems Technology},
+  title   = {Keep It Cool: Optimal Control of Robotic Systems Under Temperature Constraints},
+  year    = {2026},
+  pages   = {1-13},
+  doi     = {10.1109/TCST.2026.3721130}
+}
+```
+
+{/* Deliberately left off this page, all of which have a source in the paper but
+    do not belong on a project page: the related-work survey and its comparison
+    table, the QP / WQP / HQP and CBF mathematical background, the MPC
+    single- vs multiple-shooting formulation, the horizon and solve-time
+    analysis, and the per-joint torque and velocity plots of every scenario. */}
